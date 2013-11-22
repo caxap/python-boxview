@@ -21,7 +21,7 @@ classifiers = [
     'License :: OSI Approved :: MIT License',
     'Operating System :: OS Independent',
     'Programming Language :: Python',
-    'Topic :: Api',
+    'Topic :: Software Development :: Libraries',
 ]
 
 

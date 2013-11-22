@@ -38,7 +38,7 @@ def format_date(value):
 
 def default_headers():
     return CaseInsensitiveDict({
-        'User-Agent': ' '.join(['python-boxview/1.0.0', default_user_agent()]),
+        'User-Agent': ' '.join(['python-boxview/1.0', default_user_agent()]),
         'Accept': '*/*',
         'Accept-Encoding': ', '.join(('gzip', 'deflate', 'compress')),
     })
