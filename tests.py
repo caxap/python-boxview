@@ -10,6 +10,7 @@ from mock import patch
 from requests.models import Response
 from requests.sessions import Session
 from boxview import BoxView, BoxViewError
+from boxview.boxview import format_date
 
 
 test_url = 'https://cloud.box.com/shared/static/4qhegqxubg8ox0uj5ys8.pdf'
@@ -45,6 +46,14 @@ class BoxViewTestCase(unittest.TestCase):
     def test_initials(self):
         # api key is required
         self.assertRaises(ValueError, BoxView)
+
+        now = datetime.datetime.utcnow().replace(microsecond=0)
+        dtfiso = now.isoformat()
+        dfiso = now.date().isoformat()
+
+        self.assertEqual(dtfiso, format_date(dtfiso))
+        self.assertEqual(dtfiso, format_date(now))
+        self.assertEqual(dfiso, format_date(now.date()))
 
     @patch.object(Session, 'request')
     def test_crate_document(self, mock_request):
