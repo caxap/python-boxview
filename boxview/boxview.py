@@ -26,12 +26,12 @@ QUEUED, PROCESSING, DONE, ERROR = ('queued', 'processing', 'done', 'error')
 
 
 def format_date(value):
-    if isinstance(value, six.text_type):
+    if isinstance(value, six.string_types):
         return value
+    if isinstance(value, datetime.datetime):
+        return value.replace(microsecond=0).isoformat()
     if isinstance(value, datetime.date):
         return value.isoformat()
-    if isinstance(value. datetime.datetime):
-        return value.replace().isoformat()
 
     raise ValueError("Invalid date: {}".format(value))
 
