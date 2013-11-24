@@ -26,14 +26,17 @@ token = '<your box view api key>'
 
 api = boxview.BoxView(token)
 
-# create new document
+# upload new file to create new document
+doc = api.create_document(file='boxview.pdf', name='Box View API')
+
+# create new document from public url
 doc = api.create_document(url='https://cloud.box.com/shared/static/4qhegqxubg8ox0uj5ys8.pdf')
 
 # retrieve existings document
 doc1 = api.get_document(doc['id'])
 
 # list all uploaded documents for your api key
-all_docs = api.get_documents()
+all_docs = api.get_documents(limit=10)
 
 # update name of existing document
 doc1 = api.update_document(doc['id'], name='python-boxview')
@@ -44,7 +47,7 @@ bool(api.ready_to_view(doc['id']))
 # start view session for document
 session = api.create_session(doc['id'], duration=300)
 
-# get link to box viever
+# get link to box viewer
 api.get_session_url(session['id'])
 
 # retrieve original document content to string 

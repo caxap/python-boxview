@@ -141,7 +141,25 @@ class BoxView(object):
             return self.create_document_from_file(file, name)
 
     def create_document_from_file(self, file, name=None):
-        raise NotImplementedError
+
+        def _create_from_file(file):
+            url = urljoin(UPLOAD_URL, 'documents')
+            files = {'file': file}
+            if name:
+                data = {'name': name}
+            else:
+                data = None
+            response = self.request('POST',
+                                    url,
+                                    data=data,
+                                    files=files)
+            return response.json()
+
+        if hasattr(file, 'read'):
+            return _create_from_file(file)
+        else:
+            with open(file, 'rb') as file:
+                return _create_from_file(file)
 
     def create_document_from_url(self, url, name=None):
         data = {'url': url}

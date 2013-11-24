@@ -56,7 +56,7 @@ class BoxViewTestCase(unittest.TestCase):
         self.assertEqual(dfiso, format_date(now.date()))
 
     @patch.object(Session, 'request')
-    def test_crate_document(self, mock_request):
+    def test_crate_document_from_url(self, mock_request):
         response = Response()
         response.status_code = 201
         response._content = json.dumps(test_document)
@@ -64,9 +64,7 @@ class BoxViewTestCase(unittest.TestCase):
 
         result = self.api.create_document(url=test_url, name='Test Document')
         self.assertIsNotNone(result)
-        self.assertEqual(result['id'], test_document['id'])
-
-        # TODO: test for file param.
+        self.assertEqual(result, test_document)
 
         # url of file param is required
         self.assertRaises(ValueError, self.api.create_document)
@@ -78,10 +76,10 @@ class BoxViewTestCase(unittest.TestCase):
         response._content = json.dumps(test_document)
         mock_request.return_value = response
 
-        result = self.api.create_document_from_url(url=test_url,
+        result = self.api.create_document_from_url(test_url,
                                                    name='Test Document')
         self.assertIsNotNone(result)
-        self.assertEqual(result['id'], test_document['id'])
+        self.assertEqual(result, test_document)
 
     @patch.object(Session, 'request')
     def test_create_document_from_file(self, mock_request):
@@ -90,10 +88,14 @@ class BoxViewTestCase(unittest.TestCase):
         response._content = json.dumps(test_document)
         mock_request.return_value = response
 
-        self.assertRaises(NotImplementedError,
-                          self.api.create_document_from_file,
-                          file='',
-                          name='Test Document')
+        stream = six.BytesIO()
+        result = self.api.create_document_from_file(stream,
+                                                    name='Test Document')
+        self.assertEqual(result, test_document)
+
+        result = self.api.create_document_from_file(__file__,
+                                                    name='Test Document')
+        self.assertEqual(result, test_document)
 
     @patch.object(Session, 'request')
     def test_get_document(self, mock_request):
