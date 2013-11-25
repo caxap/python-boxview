@@ -229,15 +229,8 @@ class BoxView(object):
                                      filename,
                                      document_id,
                                      extension=None):
-        try:
-            with open(filename, 'wb') as fp:
-                self.get_document_content(fp, document_id, extension)
-        except Exception:
-            try:
-                os.remove(filename)
-            except OSError:
-                pass
-            raise
+        with open(filename, 'wb') as fp:
+            self.get_document_content(fp, document_id, extension)
 
     def get_document_content_to_string(self, document_id, extension=None):
         fp = six.StringIO()
