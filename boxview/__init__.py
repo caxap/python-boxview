@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 __title__ = 'boxview'
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 __author__ = 'Maxim Kamenkov'
 __license__ = 'MIT'
 

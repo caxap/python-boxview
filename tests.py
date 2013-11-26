@@ -10,7 +10,7 @@ from mock import patch
 from requests.models import Response
 from requests.sessions import Session
 from boxview import BoxView, BoxViewError
-from boxview.boxview import format_date
+from boxview.boxview import format_date, get_mimetype_from_headers
 
 
 test_url = 'https://cloud.box.com/shared/static/4qhegqxubg8ox0uj5ys8.pdf'
@@ -54,6 +54,11 @@ class BoxViewTestCase(unittest.TestCase):
         self.assertEqual(dtfiso, format_date(dtfiso))
         self.assertEqual(dtfiso, format_date(now))
         self.assertEqual(dfiso, format_date(now.date()))
+
+        headers = {'Content-Type': 'text/plain'}
+        self.assertEqual('text/plain', get_mimetype_from_headers(headers))
+        headers = {'Content-Type': 'text/plain; charset=utf-8'}
+        self.assertEqual('text/plain', get_mimetype_from_headers(headers))
 
     @patch.object(Session, 'request')
     def test_crate_document_from_url(self, mock_request):
@@ -115,7 +120,8 @@ class BoxViewTestCase(unittest.TestCase):
         response._content = json.dumps(test_document_list)
         mock_request.return_value = response
 
-        result = self.api.get_documents()
+        now = datetime.datetime.utcnow()
+        result = self.api.get_documents(limit=10, created_before=now)
         self.assertIsNotNone(result)
         self.assertEqual(result, test_document_list)
 
@@ -143,13 +149,15 @@ class BoxViewTestCase(unittest.TestCase):
     def test_get_document_content(self, mock_request):
         response = Response()
         response.status_code = 200
+        response.headers['Content-Type'] = 'text/plain'
         response._content = 'test'
         response.raw = six.StringIO('test')
         mock_request.return_value = response
 
         stream = six.StringIO()
-        self.api.get_document_content(stream, test_document['id'])
+        mimetype = self.api.get_document_content(stream, test_document['id'])
         self.assertEqual(stream.getvalue(), response._content)
+        self.assertEqual(mimetype, response.headers['Content-Type'])
 
         stream = six.StringIO()
         self.api.get_document_content(stream,
@@ -175,30 +183,45 @@ class BoxViewTestCase(unittest.TestCase):
     def test_get_document_content_to_string(self, mock_request):
         response = Response()
         response.status_code = 200
+        response.headers['Content-Type'] = 'text/plain'
         response._content = 'test'
         response.raw = six.StringIO('test')
         mock_request.return_value = response
 
-        result = self.api.get_document_content_to_string(test_document['id'])
+        doc_id = test_document['id']
+        result, mimetype = self.api.get_document_content_to_string(doc_id)
         self.assertIsNotNone(result)
         self.assertEqual(result, response._content)
+        self.assertEqual(mimetype, response.headers['Content-Type'])
 
     @patch.object(Session, 'request')
     def test_get_document_content_to_file(self, mock_request):
         response = Response()
         response.status_code = 200
+        response.headers['Content-Type'] = 'text/plain'
         response._content = 'test'
         response.raw = six.StringIO('test')
         mock_request.return_value = response
 
         filename = 'boxview.txt'
-        self.api.get_document_content_to_file(filename, test_document['id'])
-
+        mimetype = self.api.get_document_content_to_file(filename,
+                                                         test_document['id'])
+        self.assertEqual(mimetype, response.headers['Content-Type'])
         self.assertTrue(os.path.exists(filename))
         try:
             os.remove(filename)
         except OSError:
             pass
+
+    @patch.object(Session, 'request')
+    def test_get_document_content_mimetype(self, mock_request):
+        response = Response()
+        response.status_code = 200
+        response.headers['Content-Type'] = 'text/plain'
+        mock_request.return_value = response
+
+        mimetype = self.api.get_document_content_mimetype(test_document['id'])
+        self.assertEqual(mimetype, response.headers['Content-Type'])
 
     @patch.object(Session, 'request')
     def test_create_session(self, mock_request):

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import cgi
 import six
 import datetime
 import simplejson as json
@@ -23,6 +24,13 @@ SESSION_URL = '{}{}/'.format(BASE_API_URL, 'view')
 UPLOAD_URL = '{}{}/'.format(BASE_UPLOAD_URL, API_VERSION)
 
 QUEUED, PROCESSING, DONE, ERROR = ('queued', 'processing', 'done', 'error')
+
+
+def get_mimetype_from_headers(headers):
+    content_type = headers.get('Content-Type', '')
+    if content_type:
+        mimetype, params = cgi.parse_header(content_type)
+        return mimetype
 
 
 def format_date(value):
@@ -225,17 +233,24 @@ class BoxView(object):
         for chunk in response.iter_content():
             stream.write(chunk)
 
+        return get_mimetype_from_headers(response.headers)
+
     def get_document_content_to_file(self,
                                      filename,
                                      document_id,
                                      extension=None):
         with open(filename, 'wb') as fp:
-            self.get_document_content(fp, document_id, extension)
+            return self.get_document_content(fp, document_id, extension)
 
     def get_document_content_to_string(self, document_id, extension=None):
         fp = six.StringIO()
-        self.get_document_content(fp, document_id, extension)
-        return fp.getvalue()
+        mimetype = self.get_document_content(fp, document_id, extension)
+        return fp.getvalue(), mimetype
+
+    def get_document_content_mimetype(self, document_id):
+        url = 'documents/{}/content'.format(document_id)
+        response = self.request('HEAD', url)
+        return get_mimetype_from_headers(response.headers)
 
     def create_session(self, document_id, duration=None, expires_at=None):
         data = {'document_id': document_id}
