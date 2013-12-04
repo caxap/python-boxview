@@ -68,3 +68,10 @@ mimetype = api.get_document_content_mimetype(doc_id)
 # And delete document
 api.delete_document(doc_id)
 ```
+
+License
+-------
+
+The MIT License (MIT)
+
+Contributed by [Maxim Kamenkov](https://github.com/caxap/), [PandaDoc.com](http://pandadoc.com/)
