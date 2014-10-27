@@ -3,9 +3,9 @@
 
 import os
 import six
+import json
 import datetime
 import unittest
-import simplejson as json
 from mock import patch
 from requests.models import Response
 from requests.sessions import Session
