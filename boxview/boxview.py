@@ -6,6 +6,8 @@ import cgi
 import six
 import json
 import datetime
+import urllib
+import urlparse
 import requests
 from requests.structures import CaseInsensitiveDict
 from requests.adapters import HTTPAdapter
@@ -20,17 +22,22 @@ BASE_API_URL = 'https://view-api.box.com/'
 BASE_UPLOAD_URL = 'https://upload.view-api.box.com/'
 
 API_URL = '{}{}/'.format(BASE_API_URL, API_VERSION)
-SESSION_URL = '{}{}/'.format(BASE_API_URL, 'view')
 UPLOAD_URL = '{}{}/'.format(BASE_UPLOAD_URL, API_VERSION)
 
 QUEUED, PROCESSING, DONE, ERROR = ('queued', 'processing', 'done', 'error')
 
 
+def add_to_url(url, **params):
+    parts = list(urlparse.urlparse(url))
+    query = dict(urlparse.parse_qsl(parts[4]), **params)
+    parts[4] = urllib.urlencode(query)
+    return urlparse.urlunparse(parts)
+
+
 def get_mimetype_from_headers(headers):
     content_type = headers.get('Content-Type', '')
     if content_type:
-        mimetype, params = cgi.parse_header(content_type)
-        return mimetype
+        return cgi.parse_header(content_type)[0]
 
 
 def format_date(value):
@@ -140,23 +147,33 @@ class BoxView(object):
 
         return response
 
-    def create_document(self, url=None, file=None, name=None):
+    def create_document(self,
+                        url=None,
+                        file=None,
+                        name='',
+                        thumbnails='',
+                        non_svg=False):
         if not url and not file:
             raise ValueError("Document url or file is required")
-        if url:
-            return self.create_document_from_url(url, name)
-        else:
-            return self.create_document_from_file(file, name)
 
-    def create_document_from_file(self, file, name=None):
+        data = {}
+        if name:
+            data['name'] = name
+        if thumbnails:
+            data['thumbnails'] = thumbnails
+        if non_svg:
+            data['non_svg'] = bool(non_svg)
+
+        if url:
+            return self.create_document_from_url(url, **data)
+        else:
+            return self.create_document_from_file(file, **data)
+
+    def create_document_from_file(self, file, **data):
 
         def _create_from_file(file):
             url = urljoin(UPLOAD_URL, 'documents')
             files = {'file': file}
-            if name:
-                data = {'name': name}
-            else:
-                data = None
             response = self.request('POST',
                                     url,
                                     data=data,
@@ -169,10 +186,8 @@ class BoxView(object):
             with open(file, 'rb') as file:
                 return _create_from_file(file)
 
-    def create_document_from_url(self, url, name=None):
-        data = {'url': url}
-        if name:
-            data['name'] = name
+    def create_document_from_url(self, url, **data):
+        data['url'] = url
         headers = {'Content-type': 'application/json'}
         response = self.request('POST',
                                 'documents',
@@ -216,6 +231,28 @@ class BoxView(object):
 
         return self.request('GET', 'documents', params=params).json()
 
+    def get_thumbnail(self, stream, document_id, width, height):
+        url = 'documents/{}/thumbnail'.format(document_id)
+        params = {
+            'width': width,
+            'height': height,
+        }
+        response = self.request('GET', url, params=params)
+
+        for chunk in response.iter_content():
+            stream.write(chunk)
+
+        return get_mimetype_from_headers(response.headers)
+
+    def get_thumbnail_to_file(self, filename, document_id, width, height):
+        with open(filename, 'wb') as fp:
+            return self.get_thumbnail(fp, document_id, width, height)
+
+    def get_thumbnail_to_string(self, document_id, width, height):
+        fp = six.BytesIO()
+        mimetype = self.get_thumbnail(fp, document_id, width, height)
+        return fp.getvalue(), mimetype
+
     def get_document_content(self, stream, document_id, extension=None):
         url = 'documents/{}/content'.format(document_id)
 
@@ -243,7 +280,7 @@ class BoxView(object):
             return self.get_document_content(fp, document_id, extension)
 
     def get_document_content_to_string(self, document_id, extension=None):
-        fp = six.StringIO()
+        fp = six.BytesIO()
         mimetype = self.get_document_content(fp, document_id, extension)
         return fp.getvalue(), mimetype
 
@@ -252,12 +289,21 @@ class BoxView(object):
         response = self.request('HEAD', url)
         return get_mimetype_from_headers(response.headers)
 
-    def create_session(self, document_id, duration=None, expires_at=None):
+    def create_session(self,
+                       document_id,
+                       duration=None,
+                       expires_at=None,
+                       is_downloadable=False,
+                       is_text_selectable=True):
         data = {'document_id': document_id}
         if duration:
             data['duration'] = duration
         if expires_at:
             data['expires_at'] = format_date(expires_at)
+        if is_downloadable:
+            data['is_downloadable'] = bool(is_downloadable)
+        if is_text_selectable:
+            data['is_text_selectable'] = bool(is_text_selectable)
         headers = {'Content-type': 'application/json'}
 
         response = self.request('POST',
@@ -276,5 +322,13 @@ class BoxView(object):
         return document['status']
 
     @staticmethod
-    def get_session_url(session_id):
-        return urljoin(SESSION_URL, str(session_id))
+    def get_session_url(session_id, type='view', **params):
+        """ Allowed types are: `view`, `assets`, `download`. """
+        url = 'sessions/{}/{}'.format(session_id, type)
+        url = urljoin(API_URL, url)
+        return add_to_url(url, **params)
+
+    @staticmethod
+    def get_realtime_url(session_id):
+        url = 'sse/{}'.format(session_id)
+        return urljoin(BASE_API_URL, url)
