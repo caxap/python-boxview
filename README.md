@@ -20,7 +20,7 @@ Usage
 -----
 ```python
 import os
-import boxview
+from boxview import boxview
 
 token = '<your box view api key>'
 

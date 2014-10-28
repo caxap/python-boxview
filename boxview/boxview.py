@@ -4,8 +4,8 @@
 import os
 import cgi
 import six
+import json
 import datetime
-import simplejson as json
 import requests
 from requests.structures import CaseInsensitiveDict
 from requests.adapters import HTTPAdapter
