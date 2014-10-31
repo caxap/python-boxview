@@ -7,10 +7,11 @@ import json
 import datetime
 import unittest
 from mock import patch
+from urlparse import urljoin
 from requests.models import Response
 from requests.sessions import Session
-from boxview.boxview import BoxView, BoxViewError, RetryAfter
-from boxview.boxview import format_date, get_mimetype_from_headers
+from boxview.boxview import BoxView, BoxViewError, RetryAfter, API_URL
+from boxview.utils import format_date, get_mimetype_from_headers
 
 
 test_url = 'https://cloud.box.com/shared/static/4qhegqxubg8ox0uj5ys8.pdf'
@@ -72,24 +73,26 @@ class BoxViewTestCase(unittest.TestCase):
         response._content = json.dumps(test_document)
         mock_request.return_value = response
 
-        result = self.api.create_document(url=test_url, name='Test Document')
+        result = self.api.create_document(url=test_url,
+                                          name='Test Document',
+                                          thumbnails='100x100,200x200',
+                                          non_svg=False)
         self.assertIsNotNone(result)
         self.assertEqual(result, test_document)
+
+        data = {
+            'url': test_url,
+            'name': 'Test Document',
+            'thumbnails': '100x100,200x200',
+        }
+        headers = {'Content-Type': 'application/json'}
+        url = urljoin(API_URL, 'documents')
+        mock_request.assert_called_with('POST', url,
+                                        data=json.dumps(data),
+                                        headers=headers)
 
         # url of file param is required
         self.assertRaises(ValueError, self.api.create_document)
-
-    @patch.object(Session, 'request')
-    def test_create_document_from_url(self, mock_request):
-        response = Response()
-        response.status_code = 201
-        response._content = json.dumps(test_document)
-        mock_request.return_value = response
-
-        result = self.api.create_document_from_url(test_url,
-                                                   name='Test Document')
-        self.assertIsNotNone(result)
-        self.assertEqual(result, test_document)
 
     @patch.object(Session, 'request')
     def test_create_document_from_file(self, mock_request):
@@ -156,27 +159,27 @@ class BoxViewTestCase(unittest.TestCase):
         response.status_code = 200
         response.headers['Content-Type'] = 'text/plain'
         response._content = 'test'
-        response.raw = six.StringIO('test')
+        response.raw = six.BytesIO('test')
         mock_request.return_value = response
 
-        stream = six.StringIO()
+        stream = six.BytesIO()
         mimetype = self.api.get_document_content(stream, test_document['id'])
         self.assertEqual(stream.getvalue(), response._content)
         self.assertEqual(mimetype, response.headers['Content-Type'])
 
-        stream = six.StringIO()
+        stream = six.BytesIO()
         self.api.get_document_content(stream,
                                       test_document['id'],
                                       extension='.pdf')
         self.assertEqual(stream.getvalue(), response._content)
 
-        stream = six.StringIO()
+        stream = six.BytesIO()
         self.api.get_document_content(stream,
                                       test_document['id'],
                                       extension='.zip')
         self.assertEqual(stream.getvalue(), response._content)
 
-        stream = six.StringIO()
+        stream = six.BytesIO()
         # allowed only .zip and .pdf extensions
         self.assertRaises(ValueError,
                           self.api.get_document_content,
@@ -190,7 +193,7 @@ class BoxViewTestCase(unittest.TestCase):
         response.status_code = 200
         response.headers['Content-Type'] = 'text/plain'
         response._content = 'test'
-        response.raw = six.StringIO('test')
+        response.raw = six.BytesIO('test')
         mock_request.return_value = response
 
         doc_id = test_document['id']
@@ -205,7 +208,7 @@ class BoxViewTestCase(unittest.TestCase):
         response.status_code = 200
         response.headers['Content-Type'] = 'text/plain'
         response._content = 'test'
-        response.raw = six.StringIO('test')
+        response.raw = six.BytesIO('test')
         mock_request.return_value = response
 
         filename = 'boxview.txt'
@@ -236,11 +239,27 @@ class BoxViewTestCase(unittest.TestCase):
         mock_request.return_value = response
 
         expires_at = datetime.datetime.utcnow()
-        result = self.api.create_session(test_document['id'],
+        doc_id = test_document['id']
+        result = self.api.create_session(doc_id,
                                          duration=600,
-                                         expires_at=expires_at)
+                                         expires_at=expires_at,
+                                         is_downloadable=True,
+                                         is_text_selectable=True)
         self.assertIsNotNone(result)
         self.assertEqual(result['id'], test_session['id'])
+
+        data = {
+            'document_id': doc_id,
+            'duration': 600,
+            'expires_at': expires_at.replace(microsecond=0).isoformat(),
+            'is_downloadable': True,
+            'is_text_selectable': True
+        }
+        headers = {'Content-Type': 'application/json'}
+        url = urljoin(API_URL, 'sessions')
+        mock_request.assert_called_with('POST', url,
+                                        data=json.dumps(data),
+                                        headers=headers)
 
     @patch.object(Session, 'request')
     def test_ready_to_view(self, mock_request):
@@ -283,6 +302,55 @@ class BoxViewTestCase(unittest.TestCase):
             self.assertEqual(e.seconds, 100.0)
         else:
             self.assertTrue(False)
+
+    @patch.object(Session, 'request')
+    def test_get_thumbnail(self, mock_request):
+        response = Response()
+        response.status_code = 200
+        response.headers['Content-Type'] = 'image/png'
+        response._content = 'test'
+        response.raw = six.BytesIO('test')
+        mock_request.return_value = response
+
+        stream = six.BytesIO()
+        mimetype = self.api.get_thumbnail(stream, test_document['id'], 100, 100)
+        self.assertEqual(stream.getvalue(), response._content)
+        self.assertEqual(mimetype, response.headers['Content-Type'])
+
+    @patch.object(Session, 'request')
+    def test_get_thumbnail_to_string(self, mock_request):
+        response = Response()
+        response.status_code = 200
+        response.headers['Content-Type'] = 'image/png'
+        response._content = 'test'
+        response.raw = six.BytesIO('test')
+        mock_request.return_value = response
+
+        doc_id = test_document['id']
+        result, mimetype = self.api.get_thumbnail_to_string(doc_id, 100, 100)
+        self.assertIsNotNone(result)
+        self.assertEqual(result, response._content)
+        self.assertEqual(mimetype, response.headers['Content-Type'])
+
+    @patch.object(Session, 'request')
+    def test_get_thumbnail_to_file(self, mock_request):
+        response = Response()
+        response.status_code = 200
+        response.headers['Content-Type'] = 'image/png'
+        response._content = 'test'
+        response.raw = six.BytesIO('test')
+        mock_request.return_value = response
+
+        filename = 'boxview.png'
+        mimetype = self.api.get_thumbnail_to_file(filename,
+                                                  test_document['id'],
+                                                  100, 100)
+        self.assertEqual(mimetype, response.headers['Content-Type'])
+        self.assertTrue(os.path.exists(filename))
+        try:
+            os.remove(filename)
+        except OSError:
+            pass
 
 
 if __name__ == '__main__':

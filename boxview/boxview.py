@@ -94,10 +94,12 @@ class BoxView(object):
 
     def request(self, method, url, **kwargs):
         url = urljoin(self.base_url, url)
-        allow_redirects = method.upper() in ['GET', 'HEAD', 'OPTIONS']
 
-        kwargs.setdefault('timeout', self.timeout)
-        kwargs.setdefault('allow_redirects', allow_redirects)
+        if self.timeout is not None:
+            kwargs.setdefault('timeout', self.timeout)
+
+        if method.upper() in ['GET', 'HEAD', 'OPTIONS']:
+            kwargs.setdefault('allow_redirects', True)
 
         response = self.session.request(method, url, **kwargs)
 
@@ -124,7 +126,7 @@ class BoxView(object):
         if thumbnails:
             data['thumbnails'] = thumbnails
         if non_svg:
-            data['non_svg'] = bool(non_svg)
+            data['non_svg'] = True
 
         if url:
             return self.create_document_from_url(url, **data)
@@ -150,7 +152,7 @@ class BoxView(object):
 
     def create_document_from_url(self, url, **data):
         data['url'] = url
-        headers = {'Content-type': 'application/json'}
+        headers = {'Content-Type': 'application/json'}
         response = self.request('POST',
                                 'documents',
                                 data=json.dumps(data),
@@ -172,7 +174,7 @@ class BoxView(object):
     def update_document(self, document_id, name):
         url = 'documents/{}'.format(document_id)
         data = {'name': name}
-        headers = {'Content-type': 'application/json'}
+        headers = {'Content-Type': 'application/json'}
         response = self.request('PUT',
                                 url,
                                 data=json.dumps(data),
@@ -266,7 +268,7 @@ class BoxView(object):
             data['is_downloadable'] = bool(is_downloadable)
         if is_text_selectable:
             data['is_text_selectable'] = bool(is_text_selectable)
-        headers = {'Content-type': 'application/json'}
+        headers = {'Content-Type': 'application/json'}
 
         response = self.request('POST',
                                 'sessions',
