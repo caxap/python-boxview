@@ -2,19 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import os
-import cgi
 import six
 import json
-import datetime
-import urllib
-import urlparse
-import requests
-from requests.structures import CaseInsensitiveDict
-from requests.adapters import HTTPAdapter
-from requests.utils import default_user_agent
 from urlparse import urljoin
 
-__all__ = ['BoxView', 'BoxViewError']
+from .utils import (
+    default_session, default_headers, format_date, add_to_url,
+    get_mimetype_from_headers, format_error_response
+)
+
+__all__ = ['BoxView', 'BoxViewError', 'RetryAfter']
 
 
 API_VERSION = '1'
@@ -27,64 +24,24 @@ UPLOAD_URL = '{}{}/'.format(BASE_UPLOAD_URL, API_VERSION)
 QUEUED, PROCESSING, DONE, ERROR = ('queued', 'processing', 'done', 'error')
 
 
-def add_to_url(url, **params):
-    parts = list(urlparse.urlparse(url))
-    query = dict(urlparse.parse_qsl(parts[4]), **params)
-    parts[4] = urllib.urlencode(query)
-    return urlparse.urlunparse(parts)
-
-
-def get_mimetype_from_headers(headers):
-    content_type = headers.get('Content-Type', '')
-    if content_type:
-        return cgi.parse_header(content_type)[0]
-
-
-def format_date(value):
-    if isinstance(value, six.string_types):
-        return value
-    if isinstance(value, datetime.datetime):
-        return value.replace(microsecond=0).isoformat()
-    if isinstance(value, datetime.date):
-        return value.isoformat()
-
-    raise ValueError("Invalid date: {}".format(value))
-
-
-def default_headers():
-    return CaseInsensitiveDict({
-        'User-Agent': ' '.join(['python-boxview/1.0', default_user_agent()]),
-        'Accept': '*/*',
-        'Accept-Encoding': ', '.join(('gzip', 'deflate', 'compress')),
-    })
-
-
-def default_session(max_retries=3):
-    session = requests.Session()
-    session.mount('http://', HTTPAdapter(max_retries=max_retries))
-    session.mount('https://', HTTPAdapter(max_retries=max_retries))
-    return session
-
-
 class BoxViewError(Exception):
 
-    def __init__(self, response):
+    def __init__(self, response=None, message=''):
         Exception.__init__(self)
+        if not message and response is not None:
+            message = format_error_response(response)
+        self.message = message
         self.response = response
 
-    def _get_error(self):
-        if self.response.headers.get('Content-Type') == 'application/json':
-            error = json.dumps(self.response.json(),
-                               sort_keys=True,
-                               indent=4,
-                               separators=(',', ': '))
-            return '\n{}'.format(error)
-        return self.response.reason or ''
-
     def __str__(self):
-        return "HTTP Status: {} {}".format(
-            self.response.status_code,
-            self._get_error())
+        return self.message
+
+
+class RetryAfter(BoxViewError):
+
+    def __init__(self, response, message=''):
+        super(RetryAfter, self).__init__(response, message)
+        self.seconds = float(response.headers.get('Retry-After', 0))
 
 
 def _get_box_view_api_key():
@@ -137,11 +94,16 @@ class BoxView(object):
 
     def request(self, method, url, **kwargs):
         url = urljoin(self.base_url, url)
+        allow_redirects = method.upper() in ['GET', 'HEAD', 'OPTIONS']
 
         kwargs.setdefault('timeout', self.timeout)
-        kwargs.setdefault('allow_redirects', method.upper() == 'GET')
+        kwargs.setdefault('allow_redirects', allow_redirects)
 
         response = self.session.request(method, url, **kwargs)
+
+        if 'Retry-After' in response.headers:
+            raise RetryAfter(response)
+
         if not response.ok:
             raise BoxViewError(response)
 

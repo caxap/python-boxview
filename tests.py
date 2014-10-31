@@ -9,7 +9,7 @@ import unittest
 from mock import patch
 from requests.models import Response
 from requests.sessions import Session
-from boxview import BoxView, BoxViewError
+from boxview.boxview import BoxView, BoxViewError, RetryAfter
 from boxview.boxview import format_date, get_mimetype_from_headers
 
 
@@ -32,9 +32,14 @@ test_document_list = {
 }
 
 test_session = {
-    "type": "session",
-    "id": "IyA4Ij8IzE_Wih20hML3ihxEOul1T4rxHLBtwa4IRg9m-FApz80OtEwst_RmnGq8SzJRsGaEU0UWSotJCW33KUeJ0Ah5uQ",
-    "expires_at": "2013-09-11T19:52:09Z"
+    'type': 'session',
+    'id': '4fba9eda0dd745d491ad0b98e224aa25',
+    'expires_at': '3915-10-29T01:31:48.677Z',
+    'urls': {
+        'view': 'https://view-api.box.com/1/sessions/4fba9eda0dd745d491ad0b98e224aa25/view',
+        'assets': 'https://view-api.box.com/1/sessions/4fba9eda0dd745d491ad0b98e224aa25/assets/',
+        'realtime': 'https://view-api.box.com/sse/4fba9eda0dd745d491ad0b98e224aa25',
+    },
 }
 
 
@@ -264,6 +269,20 @@ class BoxViewTestCase(unittest.TestCase):
         self.assertRaises(BoxViewError,
                           self.api.get_document,
                           test_document['id'])
+
+    @patch.object(Session, 'request')
+    def test_request_retry_after(self, mock_request):
+        response = Response()
+        response.status_code = 202
+        response.headers['Retry-After'] = '100.0'
+        mock_request.return_value = response
+
+        try:
+            self.api.get_thumbnail_to_string(test_document['id'], 100, 100)
+        except RetryAfter as e:
+            self.assertEqual(e.seconds, 100.0)
+        else:
+            self.assertTrue(False)
 
 
 if __name__ == '__main__':
