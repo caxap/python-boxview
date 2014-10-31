@@ -1,7 +1,7 @@
 python-boxview
 ==============
 
-Python client library for Box View API (http://developers.box.com/view/)
+Python client library for [Box View API](http://developers.box.com/view/)
 
 Installation
 ------------
@@ -16,15 +16,26 @@ Github and install it manually:
     git clone https://github.com/caxap/python-boxview.git
     python setup.py install
 
+Authentication
+--------------
+Box View API uses token-based authentication. You need create application and generate api token at [Box Developes Portal](https://app.box.com/developers/services). Then use the token to create instance of BoxView: 
+
+```python
+from boxview import boxview
+
+api = boxview.BoxView('<your box view api key>')
+```
+
+Alternatively, token can be set by environment variable `BOX_VIEW_API_KEY`.
+
 Usage
 -----
+python-boxview supports all methods from Box View API. List of methods and parameters description can be found [here](http://developers.box.com/view/) 
 ```python
 import os
 from boxview import boxview
 
-token = '<your box view api key>'
-
-api = boxview.BoxView(token)
+api = boxview.BoxView('<your box view api key>')
 
 # upload file to create new document
 doc = api.create_document(file='python-boxview.pdf', name='python-boxview')
@@ -67,6 +78,28 @@ mimetype = api.get_document_content_mimetype(doc_id)
 
 # And delete document
 api.delete_document(doc_id)
+```
+
+Dealing with Rate Limiting
+--------------------------
+```python
+import time
+from boxview import boxview
+
+api = boxview.BoxView('<your box view api key>')
+
+retry, max_retry = 0, 3
+while True:
+    try:
+        api.get_thumbnail_to_file('thumbnail_100x100.png', 100, 100)
+        break  # ok, thumbnail saved
+    except boxview.RetryAfter as e:
+        retry += 1
+        if retry <= max_retry:
+            time.sleep(e.seconds) # waiting for next call
+        else:
+            raise  # failed after `max_retry` attempts, exit with exception
+
 ```
 
 License
