@@ -88,10 +88,11 @@ from boxview import boxview
 
 api = boxview.BoxView('<your box view api key>')
 
+document_id = '2da6cf9261824fb0a4fe532f94d14625'
 retry, max_retry = 0, 3
 while True:
     try:
-        api.get_thumbnail_to_file('thumbnail_100x100.png', 100, 100)
+        api.get_thumbnail_to_file('thumbnail_100x100.png', document_id, 100, 100)
         break  # ok, thumbnail saved
     except boxview.RetryAfter as e:
         retry += 1
