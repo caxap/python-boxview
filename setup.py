@@ -13,7 +13,7 @@ setup(
     url = 'https://github.com/caxap/python-boxview',
     packages = find_packages(),
     install_requires=[
-        'requests==2.0.1',
+        'requests',
         'six',
     ],
     license = 'MIT',
