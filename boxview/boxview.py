@@ -276,6 +276,10 @@ class BoxView(object):
                                 headers=headers)
         return response.json()
 
+    def delete_session(self, session_id):
+        url = 'sessions/{}'.format(session_id)
+        self.request('DELETE', url)
+
     def ready_to_view(self, document_id):
         document = self.get_document(document_id)
         if document['status'] == DONE:
