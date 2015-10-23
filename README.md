@@ -1,7 +1,7 @@
 python-boxview
 ==============
 
-Python client library for [Box View API](http://developers.box.com/view/)
+Python client library for [Box View API](https://box-view.readme.io/)
 
 Installation
 ------------
@@ -30,7 +30,7 @@ Alternatively, token can be set by environment variable `BOX_VIEW_API_KEY`.
 
 Usage
 -----
-python-boxview supports all methods from Box View API. List of methods and parameters description can be found [here](http://developers.box.com/view/) 
+python-boxview supports all methods from Box View API. List of methods and parameters description can be found [here](https://box-view.readme.io/)
 ```python
 import os
 from boxview import boxview
@@ -76,7 +76,13 @@ os.path.exists('python-boxview.pdf')
 # retrieve mimetype of original document content
 mimetype = api.get_document_content_mimetype(doc_id)
 
-# And delete document
+# create webhook
+api.create_webhook('http://example.com/my-webhook')
+
+# create S3 storage profile
+api.create_storage_profile('S3', 'super-awesome-bucket', 'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY')
+
+# and delete document
 api.delete_document(doc_id)
 ```
 

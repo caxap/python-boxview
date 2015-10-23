@@ -116,7 +116,7 @@ class BoxView(object):
                         file=None,
                         name='',
                         thumbnails='',
-                        non_svg=False):
+                        non_svg=None):
         if not url and not file:
             raise ValueError("Document url or file is required")
 
@@ -125,8 +125,8 @@ class BoxView(object):
             data['name'] = name
         if thumbnails:
             data['thumbnails'] = thumbnails
-        if non_svg:
-            data['non_svg'] = True
+        if non_svg is not None:
+            data['non_svg'] = bool(non_svg)
 
         if url:
             return self.create_document_from_url(url, **data)
@@ -220,7 +220,7 @@ class BoxView(object):
     def get_document_content(self, stream, document_id, extension=None):
         url = 'documents/{}/content'.format(document_id)
 
-        allowed_extensions = ['.pdf', '.zip']
+        allowed_extensions = ['.pdf', '.zip', '.txt']
         if extension:
             if extension in allowed_extensions:
                 url = '{0}{1}'.format(url, extension)
@@ -257,16 +257,16 @@ class BoxView(object):
                        document_id,
                        duration=None,
                        expires_at=None,
-                       is_downloadable=False,
-                       is_text_selectable=True):
+                       is_downloadable=None,
+                       is_text_selectable=None):
         data = {'document_id': document_id}
         if duration:
             data['duration'] = duration
         if expires_at:
             data['expires_at'] = format_date(expires_at)
-        if is_downloadable:
+        if is_downloadable is not None:
             data['is_downloadable'] = bool(is_downloadable)
-        if is_text_selectable:
+        if is_text_selectable is not None:
             data['is_text_selectable'] = bool(is_text_selectable)
         headers = {'Content-Type': 'application/json'}
 
@@ -300,3 +300,48 @@ class BoxView(object):
     def get_realtime_url(session_id):
         url = 'sse/{}'.format(session_id)
         return urljoin(BASE_API_URL, url)
+
+    def create_storage_profile(self,
+                               provider,
+                               s3_bucket_name,
+                               s3_access_key_id,
+                               s3_secret_access_key):
+        allowed_providers = ['S3']
+        if provider not in allowed_providers:
+            raise ValueError(
+                "Invalid provider '{0}'; choose one of {1}".format(
+                    provider, ', '.join(allowed_providers)))
+
+        data = {
+            'provider': provider,
+            's3_bucket_name': s3_bucket_name,
+            's3_access_key_id': s3_access_key_id,
+            's3_secret_access_key': s3_secret_access_key,
+        }
+        headers = {'Content-Type': 'application/json'}
+        response = self.request('POST',
+                                'settings/storage-profile',
+                                data=json.dumps(data),
+                                headers=headers)
+        return response.json()
+
+    def get_storage_profile(self):
+        return self.request('GET', 'settings/storage-profile').json()
+
+    def delete_storage_profile(self):
+        self.request('DELETE', 'settings/storage-profile')
+
+    def create_webhook(self, url):
+        data = {'url': url}
+        headers = {'Content-Type': 'application/json'}
+        response = self.request('POST',
+                                'settings/webhook',
+                                data=json.dumps(data),
+                                headers=headers)
+        return response.json()
+
+    def get_webhook(self):
+        return self.request('GET', 'settings/webhook').json()
+
+    def delete_webhook(self):
+        self.request('DELETE', 'settings/webhook')
