@@ -4,7 +4,10 @@
 import os
 import six
 import json
-from urlparse import urljoin
+if six.PY3:
+    from urllib.parse import urljoin
+else:
+    from urlparse import urljoin
 
 from .utils import (
     default_session, default_headers, format_date, add_to_url,

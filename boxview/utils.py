@@ -6,7 +6,10 @@ import six
 import json
 import datetime
 import urllib
-import urlparse
+if six.PY3:
+    from urllib import parse as urlparse
+else:
+    import urlparse
 import requests
 from requests.structures import CaseInsensitiveDict
 from requests.adapters import HTTPAdapter
