@@ -15,6 +15,7 @@ from .utils import (
 
 __all__ = ['BoxView', 'BoxViewError', 'RetryAfter']
 
+DOWNLOAD_CHUNK_SIZE = 1024
 
 API_VERSION = '1'
 BASE_API_URL = 'https://view-api.box.com/'
@@ -205,7 +206,7 @@ class BoxView(object):
         }
         response = self.request('GET', url, params=params)
 
-        for chunk in response.iter_content():
+        for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
             stream.write(chunk)
 
         return get_mimetype_from_headers(response.headers)
@@ -233,7 +234,7 @@ class BoxView(object):
 
         response = self.request('GET', url, stream=True)
 
-        for chunk in response.iter_content():
+        for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
             stream.write(chunk)
 
         return get_mimetype_from_headers(response.headers)
