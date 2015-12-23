@@ -8,8 +8,10 @@ import datetime
 import urllib
 if six.PY3:
     from urllib import parse as urlparse
+    from urllib.parse import urlencode
 else:
     import urlparse
+    from urllib import urlencode
 import requests
 from requests.structures import CaseInsensitiveDict
 from requests.adapters import HTTPAdapter
@@ -38,7 +40,7 @@ def default_session(max_retries=3):
 def add_to_url(url, **params):
     parts = list(urlparse.urlparse(url))
     query = dict(urlparse.parse_qsl(parts[4]), **params)
-    parts[4] = urllib.urlencode(query)
+    parts[4] = urlencode(query)
     return urlparse.urlunparse(parts)
 
 
